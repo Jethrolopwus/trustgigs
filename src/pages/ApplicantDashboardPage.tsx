@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { contractApi } from '../api/mockContract'
+import { onchainContractApi } from '../api/onchainContract'
 import type { Application } from '../types'
 import { useWallet } from '../wallet/WalletContext'
 
@@ -13,7 +13,7 @@ export function ApplicantDashboardPage() {
     if (!address || !isConnected) return
     void (async () => {
       setLoading(true)
-      const apps = await contractApi.getApplicantApplications(address)
+      const apps = await onchainContractApi.getApplicantApplications(address)
       setApplications(apps)
       setLoading(false)
     })()

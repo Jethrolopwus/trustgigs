@@ -1,8 +1,9 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { contractApi } from '../api/mockContract'
+import { onchainContractApi } from '../api/onchainContract'
 import type { Application, Job } from '../types'
 import { useWallet } from '../wallet/WalletContext'
+import { callContractWithWallet } from '../wallet/stacksContractCall'
 
 export function JobDetailPage() {
   const { jobId } = useParams<{ jobId: string }>()
@@ -18,8 +19,8 @@ export function JobDetailPage() {
     void (async () => {
       setLoading(true)
       const [jobData, apps] = await Promise.all([
-        contractApi.getJob(jobId),
-        contractApi.listApplications(jobId),
+        onchainContractApi.getJob(jobId),
+        onchainContractApi.listApplications(jobId),
       ])
       setJob(jobData ?? null)
       setApplications(apps)
@@ -52,14 +53,25 @@ export function JobDetailPage() {
     e.preventDefault()
     if (!jobId || !address || !coverLetter.trim()) return
     setSubmitting(true)
-    const app = await contractApi.applyToJob({
-      jobId,
-      applicantAddress: address,
-      coverLetter,
-    })
-    setApplications((prev) => [app, ...prev])
+    try {
+      const txOptions = onchainContractApi.buildApplyToJobArgs({
+        jobId,
+        coverLetter,
+      })
+      await callContractWithWallet({
+        ...txOptions,
+      })
+      // Refresh from chain after successful broadcast
+      const [jobData, apps] = await Promise.all([
+        onchainContractApi.getJob(jobId),
+        onchainContractApi.listApplications(jobId),
+      ])
+      setJob(jobData ?? null)
+      setApplications(apps)
+    } finally {
+      setSubmitting(false)
+    }
     setCoverLetter('')
-    setSubmitting(false)
   }
 
   return (

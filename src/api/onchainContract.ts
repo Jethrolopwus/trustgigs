@@ -1,41 +1,22 @@
-import {
-  callReadOnlyFunction,
-  ClarityType,
-  cvToJSON,
-  principalCV,
-  stringAsciiCV,
-  uintCV,
-} from '@stacks/transactions'
-import { StacksTestnet } from '@stacks/network'
+import { fetchCallReadOnlyFunction, ClarityType, cvToJSON, stringAsciiCV, uintCV } from '@stacks/transactions'
+import { STACKS_TESTNET } from '@stacks/network'
 import type { Application, Job, JobFilters } from '../types'
 
-// TODO: Update these once the contract is deployed.
-const CONTRACT_ADDRESS = 'SPXXXXXXXXXXXXXXXTRUSTGIGS' // replace with real address
-const CONTRACT_NAME = 'TrustGigs'
+// Contract configuration is provided via Vite env vars in `.env`.
+// Make sure to set:
+// - VITE_CONTRACT_ADDRESS=SP...
+// - VITE_CONTRACT_NAME=TrustGigs
+const CONTRACT_ADDRESS =
+  (import.meta.env.VITE_CONTRACT_ADDRESS as string | undefined) ?? 'SPXXXXXXXXXXXXXXXTRUSTGIGS'
+const CONTRACT_NAME = (import.meta.env.VITE_CONTRACT_NAME as string | undefined) ?? 'TrustGigs'
 
-const network = new StacksTestnet()
-
-type JobOnChain = {
-  employer: string
-  reward: bigint
-  status: bigint
-  winner?: string | null
-  applicationCounter: bigint
-  title: string
-  description: string
-}
-
-type ApplicationOnChain = {
-  applicant: string
-  note: string
-  isWinner: boolean
-}
+const network = STACKS_TESTNET
 
 async function callJobReadOnly<T>(
   functionName: string,
   args: any[],
 ): Promise<T | undefined> {
-  const result = await callReadOnlyFunction({
+  const result = await fetchCallReadOnlyFunction({
     contractAddress: CONTRACT_ADDRESS,
     contractName: CONTRACT_NAME,
     functionName,
@@ -136,6 +117,21 @@ export const onchainContractApi = {
       apps.push(mapApplication(jobIdNum, i, appVal))
     }
     return apps
+  },
+
+  async getEmployerJobs(employerAddress: string): Promise<Job[]> {
+    const jobs = await this.listJobs()
+    return jobs.filter((j) => j.employerAddress === employerAddress)
+  },
+
+  async getApplicantApplications(applicantAddress: string): Promise<Application[]> {
+    const jobs = await this.listJobs()
+    const applications: Application[] = []
+    for (const job of jobs) {
+      const apps = await this.listApplications(job.id)
+      applications.push(...apps.filter((a) => a.applicantAddress === applicantAddress))
+    }
+    return applications
   },
 
   // The following methods construct argument payloads for contract calls.

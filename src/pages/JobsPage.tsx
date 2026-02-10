@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { contractApi } from '../api/mockContract'
+import { onchainContractApi } from '../api/onchainContract'
 import type { Job, JobFilters } from '../types'
 
 function formatSats(value: number) {
@@ -15,7 +15,7 @@ export function JobsPage() {
   useEffect(() => {
     void (async () => {
       setLoading(true)
-      const data = await contractApi.listJobs(filters)
+      const data = await onchainContractApi.listJobs(filters)
       setJobs(data)
       setLoading(false)
     })()

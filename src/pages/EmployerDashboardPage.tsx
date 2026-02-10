@@ -1,8 +1,9 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { contractApi } from '../api/mockContract'
+import { onchainContractApi } from '../api/onchainContract'
 import type { Application, Job } from '../types'
 import { useWallet } from '../wallet/WalletContext'
+import { callContractWithWallet } from '../wallet/stacksContractCall'
 
 export function EmployerDashboardPage() {
   const { address, isConnected } = useWallet()
@@ -21,7 +22,7 @@ export function EmployerDashboardPage() {
     if (!address || !isConnected) return
     void (async () => {
       setLoadingJobs(true)
-      const data = await contractApi.getEmployerJobs(address)
+      const data = await onchainContractApi.getEmployerJobs(address)
       setJobs(data)
       setLoadingJobs(false)
     })()
@@ -31,41 +32,48 @@ export function EmployerDashboardPage() {
     e.preventDefault()
     if (!address || !isConnected) return
     setCreating(true)
-    const job = await contractApi.createJob({
-      title,
-      description,
-      rewardSats,
-      employerAddress: address,
-    })
-    setJobs((prev) => [job, ...prev])
-    setTitle('')
-    setDescription('')
-    setRewardSats(100_000)
-    setCreating(false)
+    try {
+      const txOptions = onchainContractApi.buildCreateJobArgs({
+        title,
+        description,
+        rewardSats,
+      })
+      await callContractWithWallet({
+        ...txOptions,
+      })
+      const refreshed = await onchainContractApi.getEmployerJobs(address)
+      setJobs(refreshed)
+      setTitle('')
+      setDescription('')
+      setRewardSats(100_000)
+    } finally {
+      setCreating(false)
+    }
   }
 
   async function loadApplications(job: Job) {
     setSelectedJob(job)
     setLoadingApps(true)
-    const apps = await contractApi.listApplications(job.id)
+    const apps = await onchainContractApi.listApplications(job.id)
     setApplications(apps)
     setLoadingApps(false)
   }
 
   async function handleSelectWinner(applicationId: string) {
     if (!selectedJob) return
-    const { job, application } = await contractApi.selectWinner({
+    const txOptions = onchainContractApi.buildSelectWinnerArgs({
       jobId: selectedJob.id,
       applicationId,
     })
-    setJobs((prev) => prev.map((j) => (j.id === job.id ? job : j)))
-    setSelectedJob(job)
-    setApplications((prev) =>
-      prev.map((a) => ({
-        ...a,
-        isWinner: a.id === application.id,
-      })),
-    )
+    await callContractWithWallet({
+      ...txOptions,
+    })
+    const [jobsRefreshed, appsRefreshed] = await Promise.all([
+      onchainContractApi.getEmployerJobs(selectedJob.employerAddress),
+      onchainContractApi.listApplications(selectedJob.id),
+    ])
+    setJobs(jobsRefreshed)
+    setApplications(appsRefreshed)
   }
 
   if (!isConnected || !address) {
