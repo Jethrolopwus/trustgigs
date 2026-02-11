@@ -16,19 +16,31 @@ async function callJobReadOnly<T>(
   functionName: string,
   args: any[],
 ): Promise<T | undefined> {
-  const result = await fetchCallReadOnlyFunction({
-    contractAddress: CONTRACT_ADDRESS,
-    contractName: CONTRACT_NAME,
-    functionName,
-    functionArgs: args,
-    senderAddress: CONTRACT_ADDRESS,
-    network,
-  })
+  try {
+    const result = await fetchCallReadOnlyFunction({
+      contractAddress: CONTRACT_ADDRESS,
+      contractName: CONTRACT_NAME,
+      functionName,
+      functionArgs: args,
+      senderAddress: CONTRACT_ADDRESS,
+      network,
+    })
 
-  const json = cvToJSON(result)
-  if (json.type !== 'response') return undefined
-  if (json.value.type === 'error') return undefined
-  return json.value.value as T
+    const json = cvToJSON(result)
+    if (json.type !== 'response') return undefined
+    if (json.value.type === 'error') return undefined
+    return json.value.value as T
+  } catch (err) {
+    const message = String(err)
+    // If the contract is not yet deployed at the configured address,
+    // avoid crashing the UI and return undefined instead.
+    if (message.includes('NoSuchContract')) {
+      // eslint-disable-next-line no-console
+      console.warn('TrustGigs contract not found at configured address:', CONTRACT_ADDRESS, CONTRACT_NAME)
+      return undefined
+    }
+    throw err
+  }
 }
 
 function mapJob(id: number, value: any): Job {

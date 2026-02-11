@@ -9,6 +9,8 @@ interface WalletContextValue {
 
 const WalletContext = createContext<WalletContextValue | undefined>(undefined)
 
+const DEFAULT_ADDRESS = (import.meta.env.VITE_CONTRACT_ADDRESS as string | undefined) ?? null
+
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [address, setAddress] = useState<string | null>(null)
 
@@ -17,13 +19,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       address,
       isConnected: Boolean(address),
       connect: () => {
-        // For now we just flag the UI as "connected". Actual on-chain
-        // transactions still use the Stacks Wallet via openContractCall.
+        // Fallback: simulate a connected address using the configured
+        // contract address. Real signing happens when transactions are
+        // sent via `openContractCall`, which triggers the wallet popup.
         if (!address) {
-          setAddress('CONNECTED')
+          setAddress(DEFAULT_ADDRESS ?? 'CONNECTED')
         }
       },
-      disconnect: () => setAddress(null),
+      disconnect: () => {
+        setAddress(null)
+      },
     }),
     [address],
   )
