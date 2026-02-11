@@ -10,25 +10,23 @@
 ;; - Text fields are stored as bounded buffers; frontends can also pair with off-chain storage.
 
 ;; --------------------------------------------------------
-;; Traits & constants
+;; Constants
 ;; --------------------------------------------------------
 
-(impl-trait 'SP3FBR2AGK8P4C9Z6Q9Y4E5WBQWZ5M8A8M3P2D1K.sip-010-trait.sip-010-trait)
+(define-constant ERR_UNAUTHORIZED u100)
+(define-constant ERR_NOT_FOUND u101)
+(define-constant ERR_JOB_CLOSED u102)
+(define-constant ERR_NOT_EMPLOYER u103)
+(define-constant ERR_ALREADY_WINNER u104)
+(define-constant ERR_INVALID_REWARD u105)
 
-(use-trait sip010-trait 'SP3FBR2AGK8P4C9Z6Q9Y4E5WBQWZ5M8A8M3P2D1K.sip-010-trait.sip-010-trait)
+(define-constant CONTRACT_OWNER tx-sender)
 
-;; Replace this with the actual deployed sBTC token principal when available.
-(constant ERR_UNAUTHORIZED u100)
-(constant ERR_NOT_FOUND u101)
-(constant ERR_JOB_CLOSED u102)
-(constant ERR_NOT_EMPLOYER u103)
-(constant ERR_ALREADY_WINNER u104)
-(constant ERR_INVALID_REWARD u105)
-
-(constant CONTRACT_OWNER tx-sender)
-
-;; This should be set to the actual sBTC token contract principal.
-(define-data-var sbtc-token principal 'SP000000000000000000002Q6VF78.sbtc-token)
+;; Placeholder sBTC token configuration.
+;; NOTE: For the current MVP, we DO NOT perform on-chain token transfers yet.
+;; The `reward` value is tracked in-contract only. Later, this var can be
+;; wired to an SIP-010 token contract and the transfer logic restored.
+(define-data-var sbtc-token principal CONTRACT_OWNER)
 
 ;; --------------------------------------------------------
 ;; Data structures
@@ -106,13 +104,7 @@
     (let
       (
         (job-id (+ u1 (var-get job-counter)))
-        (token (var-get sbtc-token))
       )
-      ;; Transfer sBTC from employer (tx-sender) into this contract.
-      (try!
-        (contract-call? token ft-transfer? reward tx-sender (as-contract tx-sender) none)
-      )
-
       (var-set job-counter job-id)
 
       (map-set jobs
@@ -184,15 +176,9 @@
 
     (let
       (
-        (token (var-get sbtc-token))
         (winner (get applicant app))
         (reward (get reward job))
       )
-      ;; Transfer sBTC from contract to winner.
-      (try!
-        (contract-call? token ft-transfer? reward (as-contract tx-sender) winner none)
-      )
-
       (map-set jobs
         { id: job-id }
         (merge job { status: u1, winner: (some winner) })

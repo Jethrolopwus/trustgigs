@@ -9,28 +9,19 @@ interface WalletContextValue {
 
 const WalletContext = createContext<WalletContextValue | undefined>(undefined)
 
-const DEMO_ADDRESSES = [
-  'STEMPLOYER1',
-  'STEMPLOYER2',
-  'STAPPLICANT1',
-  'STAPPLICANT2',
-  'STAPPLICANT3',
-] as const
-
 export function WalletProvider({ children }: { children: ReactNode }) {
-  const [address, setAddress] = useState<string | null>(DEMO_ADDRESSES[0])
+  const [address, setAddress] = useState<string | null>(null)
 
   const value = useMemo<WalletContextValue>(
     () => ({
       address,
       isConnected: Boolean(address),
       connect: () => {
-        // Simple rotation through demo addresses to simulate multiple users.
-        setAddress((prev) => {
-          const currentIndex = DEMO_ADDRESSES.findIndex((a) => a === prev)
-          const nextIndex = (currentIndex + 1 + DEMO_ADDRESSES.length) % DEMO_ADDRESSES.length
-          return DEMO_ADDRESSES[nextIndex]
-        })
+        // For now we just flag the UI as "connected". Actual on-chain
+        // transactions still use the Stacks Wallet via openContractCall.
+        if (!address) {
+          setAddress('CONNECTED')
+        }
       },
       disconnect: () => setAddress(null),
     }),
